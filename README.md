@@ -12,14 +12,15 @@ This bridge uses a process-local `LD_PRELOAD` library to replace those calls wit
 
 ## Install on Arch Linux
 
-Install the official driver and build prerequisites first:
+Install [ugee-wayland-bridge from AUR](https://aur.archlinux.org/packages/ugee-wayland-bridge):
 
 ```sh
-paru -S ugee-tablet
-sudo pacman -S --needed base-devel libx11 python
+paru -S ugee-wayland-bridge
 ```
 
-Then build this companion package:
+The package depends on the official `ugee-tablet` AUR driver; paru resolves that dependency. Build tools from `base-devel` must be installed.
+
+Alternatively, build from this GitHub repository:
 
 ```sh
 git clone https://github.com/SaintFore/ugee-wayland-bridge.git
@@ -27,7 +28,7 @@ cd ugee-wayland-bridge
 makepkg -si
 ```
 
-This repository includes `PKGBUILD` and `.SRCINFO`; it has not yet been submitted to AUR.
+This repository includes the `PKGBUILD` and `.SRCINFO` published on AUR. Package sources are pinned to a GitHub commit and verified with SHA-256 checksums. Updates can be installed with `paru -Syu`.
 
 Your user must already have access to `/dev/uinput`. The current `ugee-tablet` AUR package supplies device rules; this project does not add global device permissions or require running the driver as root.
 

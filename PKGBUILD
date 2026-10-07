@@ -1,13 +1,13 @@
-# Maintainer: SaintFore
+# Maintainer: SoleilSaint
 pkgname=ugee-wayland-bridge
 pkgver=0.1.0
-pkgrel=2
+pkgrel=3
 url='https://github.com/SaintFore/ugee-wayland-bridge'
 pkgdesc='Process-local XTest to uinput keyboard bridge for the UGEE tablet driver'
 arch=('x86_64')
 license=('MIT')
 depends=('ugee-tablet' 'libx11' 'util-linux' 'procps-ng' 'python')
-source=('bridge.c' 'ugee-tablet-wayland' 'LICENSE')
+source=('bridge.c::https://raw.githubusercontent.com/SaintFore/ugee-wayland-bridge/c19286bb79a5a1b724bc46cc4843d9e30eb161ee/bridge.c' 'ugee-tablet-wayland::https://raw.githubusercontent.com/SaintFore/ugee-wayland-bridge/c19286bb79a5a1b724bc46cc4843d9e30eb161ee/ugee-tablet-wayland' 'LICENSE::https://raw.githubusercontent.com/SaintFore/ugee-wayland-bridge/c19286bb79a5a1b724bc46cc4843d9e30eb161ee/LICENSE')
 sha256sums=('ba0003b7763f99bbe58a8cc1f8e8e2b768a893fcac664e4585eb8a4667fdb82e' 'ba1ed0b586f4157ff709f442e12244df22ba1f057f65070eeed4050151050da9' '70697213fdfc5a5ef7d3dd08811bbddc612836c201c5ead38dbeae0d22d238d9')
 options=('!debug')
 build() {
