@@ -1,0 +1,45 @@
+#!/bin/bash
+set -euo pipefail
+umask 077
+state="${XDG_STATE_HOME:-$HOME/.local/state}/ugee-wayland-bridge"
+mkdir -p "$state"
+config="${XDG_CONFIG_HOME:-$HOME/.config}/ugee-wayland-bridge/Ugee_Tablet.xml"
+mkdir -p "$(dirname "$config")"
+if [[ ! -e "$config" ]]; then
+    cp /usr/lib/ugeeTablet/conf/Ugee_Tablet.xml "$config"
+fi
+python3 - "$config" <<'PY'
+import re, sys
+from pathlib import Path
+p=Path(sys.argv[1])
+s=p.read_text()
+def disable_info(match):
+    updated,count=re.subn(r'<DisableInfo>\s*[01]\s*</DisableInfo>', '<DisableInfo>1</DisableInfo>', match.group(0))
+    if count != 1:
+        raise SystemExit('Unexpected S640 hint configuration; aborting')
+    return updated
+updated,count=re.subn(r'<BPG0611>.*?</BPG0611>',disable_info,s,flags=re.S)
+if count != 1:
+    raise SystemExit('S640 configuration not found; aborting')
+if updated != s:
+    p.write_text(updated)
+PY
+exec 9>"${XDG_RUNTIME_DIR:?}/ugee-wayland-bridge.lock"
+flock -n 9 || { echo 'The UGEE Wayland bridge is already running.' >&2; exit 1; }
+pkill -x ugeeTablet || true
+pkill -x ugeeTabletDrive || true
+for attempt in {1..30}; do
+    if ! pgrep -x ugeeTabletDrive >/dev/null && ! pgrep -x ugeeTablet >/dev/null; then break; fi
+    sleep 0.1
+done
+if pgrep -x ugeeTabletDrive >/dev/null || pgrep -x ugeeTablet >/dev/null; then
+    echo 'Existing UGEE processes did not exit; aborting.' >&2
+    exit 1
+fi
+export QT_QPA_PLATFORM=xcb
+export LD_LIBRARY_PATH="/usr/lib/ugeeTablet/lib${LD_LIBRARY_PATH:+:$LD_LIBRARY_PATH}"
+export LD_PRELOAD="/usr/lib/ugee-wayland-bridge/libugee-wayland.so${LD_PRELOAD:+:$LD_PRELOAD}"
+export UGEE_BRIDGE_DEBUG=1
+export UGEE_BRIDGE_CONFIG="$config"
+cd /usr/lib/ugeeTablet
+exec ./ugeeTabletDriver >"$state/driver.log" 2>&1
