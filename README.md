@@ -10,7 +10,56 @@ The official driver sends keyboard shortcuts through X11's `XTestFakeKeyEvent`. 
 
 This bridge uses a process-local `LD_PRELOAD` library to replace those calls with Linux **uinput keyboard events**. It also redirects the driver's tablet XML to a private user configuration and disables the S640 shortcut hint. The original AUR driver's files stay unchanged.
 
+## Packages and launchers
+
+Both packages must stay installed:
+
+| Package | Role |
+| --- | --- |
+| [`ugee-tablet`](https://aur.archlinux.org/packages/ugee-tablet) | Official UGEE driver and control panel: device access, pressure, working area, and shortcut bindings. |
+| [`ugee-wayland-bridge`](https://aur.archlinux.org/packages/ugee-wayland-bridge) | Companion library and launcher: converts the driver's keyboard shortcuts to uinput events for Wayland applications. |
+
+The bridge depends on `ugee-tablet`; installing the bridge with paru also resolves the official driver dependency. It does not replace the driver or provide a separate settings application.
+
+| Application menu entry | What it starts | Configuration |
+| --- | --- | --- |
+| `ugeetablet` | Official driver without the bridge | Vendor configuration, without the bridge's private XML redirection |
+| **UGEE Tablet (Wayland shortcuts)** / **UGEE 数位板（Wayland 快捷键）** | The same official driver and panel with the bridge loaded | `~/.config/ugee-wayland-bridge/Ugee_Tablet.xml` (or `$XDG_CONFIG_HOME/ugee-wayland-bridge/Ugee_Tablet.xml`) |
+
+> [!IMPORTANT]
+> Use the **Wayland shortcuts** entry for everyday use and configure your shortcuts in the panel it opens. The two entries use different configuration sources: edits made through one entry are not automatically synchronized to the other. Keep both packages installed, but use one launcher at a time.
+
 ## Install on Arch Linux
+
+### Requirements
+
+- A working Wayland session with **XWayland support enabled** and a usable `$DISPLAY`.
+- `base-devel` to build the AUR package.
+- User access to `/dev/uinput` (see below).
+
+The official UGEE panel still uses Qt's X11 (`xcb`) backend, and the bridge reads the X11 keymap. **XWayland is required even though the generated keyboard events work in native Wayland applications.** Installing `libx11` alone does not provide an XWayland server. The current AUR package does not declare `xorg-xwayland` as a dependency; install it explicitly if missing:
+
+```sh
+sudo pacman -S --needed base-devel xorg-xwayland
+```
+
+For **niri**, also install its XWayland integration:
+
+```sh
+sudo pacman -S --needed xwayland-satellite
+```
+
+[niri's documentation](https://niri-wm.github.io/niri/Xwayland.html) explains that niri 25.08 and later automatically start `xwayland-satellite` on demand when version 0.7 or later is available in `$PATH`, and export `$DISPLAY`. After adding it, restart your niri session if XWayland integration was not available when the session started. On other compositors, follow their XWayland setup instructions.
+
+Run this in a terminal inside your graphical session:
+
+```sh
+printf 'DISPLAY=%s\n' "$DISPLAY"
+```
+
+A value such as `:0` or `:1` should be present. The display number varies; do not hard-code it. A nonempty variable is only a first check: the XWayland server must also be reachable. The bridge launcher uses the existing session and does not start an XWayland server itself.
+
+### Install the bridge
 
 Install [ugee-wayland-bridge from AUR](https://aur.archlinux.org/packages/ugee-wayland-bridge):
 
@@ -62,7 +111,7 @@ Private configuration:
 ${XDG_CONFIG_HOME:-~/.config}/ugee-wayland-bridge/Ugee_Tablet.xml
 ```
 
-The launcher copies vendor defaults on first use and changes only S640's `BPG0611/Common/DisableInfo` to `1`. The GUI may save settings and reformat this private XML. Closing the hint prevents it from taking focus away from the drawing application. Review the private configuration after vendor driver updates; it is not automatically migrated.
+The launcher copies vendor defaults on first use; it does not import changes saved through the original launcher. It changes only S640's `BPG0611/Common/DisableInfo` to `1`. The GUI may save settings and reformat this private XML. Closing the hint prevents it from taking focus away from the drawing application. Review the private configuration after vendor driver updates; it is not automatically migrated.
 
 Logs are replaced on each launch and stored privately at:
 
@@ -106,6 +155,13 @@ sudo pacman -R ugee-wayland-bridge
 
 Remove the `-28bd:f640` exclusion from keyd if you added it, then reload keyd. User configuration and logs are retained; you may delete the two directories above if no longer needed. The official `ugee-tablet` package remains installed.
 
-## License
+## Troubleshooting
 
-MIT; see [LICENSE](LICENSE). No vendor binaries or vendor XML are distributed in this repository.
+| Symptom | Check |
+| --- | --- |
+| Two UGEE entries show different shortcut settings | Use **UGEE Tablet (Wayland shortcuts)** consistently. Its panel saves to the private XML; settings are not synchronized with the original entry. |
+| The panel cannot connect to a display or initialize `xcb` | Check XWayland installation, compositor integration, and `$DISPLAY` in the same session where you launch the driver. |
+| The panel opens but shortcuts do not work in native Wayland apps | Check that you launched the Wayland entry, `/dev/uinput` is accessible, and keyd is not grabbing `28bd:f640`. |
+| A shortcut hint steals focus or interrupts repeated undo | The bridge launcher's S640 private configuration should have `DisableInfo=1`; the original entry does not apply this change. |
+
+Check `~/.local/state/ugee-wayland-bridge/driver.log` (or the corresponding `$XDG_STATE_HOME` path) for startup errors. Do not run the driver as root to work around a missing session display or device permission.
